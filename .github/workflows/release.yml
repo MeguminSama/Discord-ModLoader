@@ -5,11 +5,12 @@ on:
 jobs:
   release:
     name: release ${{ matrix.target }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        target: [x86_64-pc-windows-gnu]
+        os: [windows-2022]
+        target: [x86_64-pc-windows-msvc, i686-pc-windows-msvc]
     steps:
       - uses: actions/checkout@master
       - name: Compile and release
