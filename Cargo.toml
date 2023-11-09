@@ -1,0 +1,16 @@
+[package]
+edition = "2021"
+name = "modhook_rs"
+version = "0.1.0"
+
+[lib]
+crate-type = ["cdylib"]
+name = "libmodhook_rs"
+
+[dependencies]
+detours-sys = {version = "0.1.2", features = ["bindgen", "buildtime_bindgen"]}
+widestring = "1.0.2"
+winapi = {version = "0.3.9", features = ["winbase", "handleapi", "minwindef", "consoleapi", "winnt", "memoryapi", "namedpipeapi"]}
+
+[build-dependencies]
+asar = "0.2.0"
