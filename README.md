@@ -2,6 +2,15 @@
 
 An in-memory mod loader for Discord.
 
+# Note about 64-bit vs 32-bit Discord.
+
+Discord recently released x64 builds of all their clients.
+For this program to work, it must be compiled for the same architecture that your Discord runs on.
+
+If you go into account settings and scroll to the bottom of the sidebar, you should see `Host x.x.xxx x64` or `Host x.x.xxx x86`.
+
+Make sure to get the right build for this architecture.
+
 # Usage
 
 Download the latest version from the Releases page, and extract it somewhere.
