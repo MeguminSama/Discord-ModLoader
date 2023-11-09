@@ -1,19 +1,33 @@
+use clap::Parser;
 use std::path::Path;
 
+#[derive(Parser, Debug)]
+#[command(name = "modhook", verbatim_doc_comment)]
+/// Discord ModHook
+/// For more information, visit: https://github.com/MeguminSama/ModHook
 pub struct Environment {
-    /// ModHook ASAR replacement.
-    pub asar_path: Option<String>,
     /// Path to the mods' JS entrypoint.
+    /// Example: --mod-entrypoint "c:\users\megu\vencord\patcher.js"
+    #[arg(short, long, verbatim_doc_comment)]
     pub mod_entrypoint: String,
-    /// Path to check for to revert to default app.asar behaviour
-    /// after the mod has loaded.
-    /// This defaults to Environment.asar_path.
+
+    /// Path to check for to revert to default app.asar behaviour after the mod has loaded.
+    /// Example: --toggle-query "vencord\patcher.js"
+    #[arg(short, long, verbatim_doc_comment)]
     pub toggle_query: Option<String>,
-    /// Custom path for AppData location.
-    /// e.g. for multiple profiles, or running multiple clients at once.
+
+    /// Custom name for AppData profile.
+    /// Example: --custom-data-dir "MyCustomProfile"
+    #[arg(short, long, verbatim_doc_comment)]
     pub custom_data_dir: Option<String>,
+
+    /// ModHook ASAR replacement.
+    /// Example: --asar-path "c:\users\megu\vencord\app.asar"
+    #[arg(short, long, verbatim_doc_comment)]
+    pub asar_path: Option<String>,
 }
 
+#[allow(dead_code)]
 impl Environment {
     pub fn from_env() -> Self {
         let mut env = Environment {
@@ -31,7 +45,7 @@ impl Environment {
         }
 
         if let Ok(path) = std::env::var("MODHOOK_TOGGLE_QUERY") {
-            env.toggle_query = Some(path);
+            env.toggle_query = Some(path.to_lowercase());
         } else {
             env.toggle_query = Some(env.mod_entrypoint.clone());
         }
@@ -55,7 +69,7 @@ impl Environment {
         }
 
         if let Some(query) = &self.toggle_query {
-            std::env::set_var("MODHOOK_TOGGLE_QUERY", query);
+            std::env::set_var("MODHOOK_TOGGLE_QUERY", query.to_lowercase());
         } else {
             std::env::set_var("MODHOOK_TOGGLE_QUERY", &self.mod_entrypoint);
         }

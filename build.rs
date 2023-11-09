@@ -1,10 +1,9 @@
 use asar::AsarWriter;
 use std::env;
 use std::error::Error;
-use std::fs;
+
 use std::fs::File;
-use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::path::PathBuf;
 
 static ASAR_INDEX: &[u8] = include_bytes!("asar/index.js");
 static ASAR_PACKAGE: &[u8] = include_bytes!("asar/package.json");

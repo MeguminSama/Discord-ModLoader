@@ -580,10 +580,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "modhook_rs"
+name = "modhook"
 version = "0.1.0"
 dependencies = [
  "asar",
+ "clap",
  "detours-sys",
  "widestring",
  "winapi",

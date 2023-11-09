@@ -1,17 +1,54 @@
+#![windows_subsystem = "windows"]
 use std::{ffi::CString, mem::MaybeUninit, ptr::null_mut};
 
+use clap::Parser;
 use detours_sys::{DetourCreateProcessWithDllExA, _PROCESS_INFORMATION, _STARTUPINFOA};
 use env::Environment;
 use winapi::um::{
     handleapi::CloseHandle, processthreadsapi::ResumeThread, winbase::CREATE_SUSPENDED,
 };
 
+mod discord;
 mod env;
 
-fn main() {
-    let dll_path = "libmodhook_rs";
+static DLL_PATH: &str = "libmodhook.dll";
 
-    let target_exe = r"c:\Users\megu\AppData\Local\DiscordPTB\app-1.0.1042\DiscordPTB.exe";
+#[derive(Parser, Debug)]
+#[command(name = "modhook", verbatim_doc_comment)]
+/// Discord ModHook
+/// For more information, visit: https://github.com/MeguminSama/ModHook
+pub struct Args {
+    /// Path to the Discord folder.
+    /// Example: --discord-path "c:\users\megu\appdata\roaming\discordptb"
+    #[arg(short, long, verbatim_doc_comment)]
+    pub discord_path: String,
+
+    /// Path to the mods' JS entrypoint.
+    /// Example: --mod-entrypoint "c:\users\megu\vencord\patcher.js"
+    #[arg(short, long, verbatim_doc_comment)]
+    pub mod_entrypoint: String,
+
+    /// Path to check for to revert to default app.asar behaviour after the mod has loaded.
+    /// Example: --toggle-query "vencord\patcher.js"
+    #[arg(short, long, verbatim_doc_comment)]
+    pub toggle_query: Option<String>,
+
+    /// Custom name for AppData profile.
+    /// Example: --custom-data-dir "MyCustomProfile"
+    #[arg(short, long, verbatim_doc_comment)]
+    pub custom_data_dir: Option<String>,
+
+    /// ModHook ASAR replacement.
+    /// Example: --asar-path "c:\users\megu\vencord\app.asar"
+    #[arg(short, long, verbatim_doc_comment)]
+    pub asar_path: Option<String>,
+}
+
+fn main() {
+    let args: Args = Args::parse();
+
+    let target_exe = discord::get_discord_executable(&args.discord_path).unwrap();
+    let target_exe = target_exe.to_str().unwrap();
 
     let mut asar_path = std::env::current_dir().unwrap();
 
@@ -19,15 +56,18 @@ fn main() {
 
     let asar_path = asar_path.to_str().unwrap().to_string();
 
+    let mut dll_path = std::env::current_dir().unwrap();
+    dll_path.push(DLL_PATH);
+
     let environment = Environment {
         asar_path: Some(asar_path),
-        mod_entrypoint: r"c:\Users\megu\Workspace\Discord\Vencord\dist\patcher.js".to_string(),
-        toggle_query: None,
-        custom_data_dir: None,
+        mod_entrypoint: args.mod_entrypoint,
+        toggle_query: args.toggle_query,
+        custom_data_dir: args.custom_data_dir,
     };
 
     unsafe {
-        inject(dll_path, target_exe, &environment).unwrap();
+        inject(dll_path.to_str().unwrap(), target_exe, &environment).unwrap();
     }
 }
 
@@ -62,7 +102,6 @@ pub unsafe fn inject(
     );
 
     if result == 0 {
-        dbg!(result);
         return Err(std::io::Error::new(
             std::io::ErrorKind::Other,
             "Failed to create process",

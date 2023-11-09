@@ -7,11 +7,11 @@ use detours_sys::{
 
 use winapi::{
     shared::minwindef::{BOOL, DWORD, HINSTANCE, LPVOID},
-    um::{
-        consoleapi::AllocConsole, processthreadsapi::GetCurrentThread, winnt::DLL_PROCESS_ATTACH,
-    },
+    um::{processthreadsapi::GetCurrentThread, winnt::DLL_PROCESS_ATTACH},
 };
 
+#[cfg(debug_assertions)]
+use winapi::um::consoleapi::AllocConsole;
 // use crate::detours::fs::create_asar_in_memory;
 
 mod detours;
@@ -56,13 +56,6 @@ unsafe fn main() {
     {
         AllocConsole();
         println!("[ModHook] Process Hooked");
-        for env in std::env::vars() {
-            println!("[ModHook] {}={}", env.0, env.1);
-        }
-
-        // loop {}
-
-        // create_asar_in_memory();
     }
     let start_discord: extern "C" fn() = std::mem::transmute(O_ENTRYPOINT);
     start_discord();

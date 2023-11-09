@@ -18,7 +18,7 @@ use winapi::{
 use super::utils::file_name_handler;
 
 /// Path to the libmodhook DLL.
-static DLL_PATH: &str = "libmodhook_rs.dll";
+static DLL_PATH: &str = "libmodhook.dll";
 
 static mut O_CREATE_FILE_W: *mut c_void = 0 as _;
 static mut O_GET_FILE_ATTRIBUTES_W: *mut c_void = 0 as _;
