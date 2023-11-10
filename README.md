@@ -13,7 +13,7 @@ Make sure to get the right build for this architecture.
 
 # Usage
 
-Download the latest version from the Releases page, and extract it somewhere.
+Download the latest version from the [Releases page](https://github.com/MeguminSama/ModHook/releases/latest), and extract it somewhere.
 Make sure this directory doesn't change, as any shortcuts you make need to point to the executable.
 
 If you right-click and drag `modhook.exe`, when you release the mouse button there will be an option to create a shortcut.
