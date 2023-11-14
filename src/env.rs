@@ -1,40 +1,48 @@
-use clap::Parser;
 use std::path::Path;
 
-#[derive(Parser, Debug)]
-#[command(name = "modhook", verbatim_doc_comment)]
-/// Discord ModHook
-/// For more information, visit: https://github.com/MeguminSama/ModHook
+#[derive(Debug)]
 pub struct Environment {
     /// Path to the mods' JS entrypoint.
-    /// Example: --mod-entrypoint "c:\users\megu\vencord\patcher.js"
-    #[arg(short, long, verbatim_doc_comment)]
+    ///
+    /// e.g. "c:\users\megu\vencord\patcher.js"
     pub mod_entrypoint: String,
 
     /// Path to check for to revert to default app.asar behaviour after the mod has loaded.
-    /// Example: --toggle-query "vencord\patcher.js"
-    #[arg(short, long, verbatim_doc_comment)]
+    ///
+    /// e.g. "vencord\patcher.js"
     pub toggle_query: Option<String>,
 
     /// Custom name for AppData profile.
-    /// Example: --custom-data-dir "MyCustomProfile"
-    #[arg(short, long, verbatim_doc_comment)]
+    ///
+    /// e.g. "MyCustomProfile"
     pub custom_data_dir: Option<String>,
 
     /// ModHook ASAR replacement.
-    /// Example: --asar-path "c:\users\megu\vencord\app.asar"
-    #[arg(short, long, verbatim_doc_comment)]
+    ///
+    /// e.g. "c:\users\megu\vencord\app.asar"
     pub asar_path: Option<String>,
+
+    /// Modded ASAR filename.
+    ///
+    /// This is the file that the mod (e.g. Vencord) loads
+    /// to return to the original Discord context.
+    ///
+    /// ModHook will redirect calls to this file to the original app.asar (e.g. _app.asar -> app.asar)
+    ///
+    /// e.g. "_app.asar"
+    pub modded_asar_filename: Option<String>,
 }
 
 #[allow(dead_code)]
 impl Environment {
+    /// Creates a new Environment struct from the current environment variables.
     pub fn from_env() -> Self {
         let mut env = Environment {
             asar_path: None,
             mod_entrypoint: std::env::var("MODHOOK_MOD_ENTRYPOINT").unwrap(),
             toggle_query: None,
             custom_data_dir: None,
+            modded_asar_filename: None,
         };
 
         if let Ok(path) = std::env::var("MODHOOK_ASAR_PATH") {
@@ -54,9 +62,16 @@ impl Environment {
             env.custom_data_dir = Some(path);
         }
 
+        if let Ok(file) = std::env::var("MODHOOK_MOD_ASAR_FILENAME") {
+            env.modded_asar_filename = Some(file);
+        } else {
+            env.modded_asar_filename = Some("_app.asar".to_string());
+        }
+
         env
     }
 
+    /// Applies the environment variables to the current process.
     pub fn apply(&self) {
         if let Some(path) = &self.asar_path {
             std::env::set_var("MODHOOK_ASAR_PATH", path);
@@ -73,5 +88,16 @@ impl Environment {
         } else {
             std::env::set_var("MODHOOK_TOGGLE_QUERY", &self.mod_entrypoint);
         }
+
+        if let Some(file) = &self.modded_asar_filename {
+            std::env::set_var("MODHOOK_MOD_ASAR_FILENAME", file);
+        } else {
+            std::env::set_var("MODHOOK_MOD_ASAR_FILENAME", "_app.asar");
+        }
+
+        // Disable auto patching of the Discord client.
+        // Currently supported mods:
+        // - Vencord
+        std::env::set_var("DISABLE_UPDATER_AUTO_PATCHING", "true");
     }
 }

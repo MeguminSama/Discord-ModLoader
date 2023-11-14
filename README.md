@@ -31,8 +31,9 @@ And here's the documentation of all the flags...
 
 ```
 C:\path\to\modhook.exe
- -d "c:\users\megu\appdata\roaming\discord" # This is the path to the folder Discord is installed to.
+ -d "c:\users\megu\appdata\local\discord" # This is the path to the folder Discord is installed to.
  -m "c:\users\megu\downloads\vencord\dist\patcher.js" # This is the path to your mod's entrypoint file.
+ -f "_app.asar" # This isn't needed if you're using Vencord, Replugged, or any mod that uses "_app.asar" or "app.orig.asar"
  # Below are optional, and probably not needed.
  -t "c:\users\megu\downloads\vencord\dist\patcher.js" # This is the query used to see if the mod is loaded. This defaults to the value of `-m`
  -c "MyAlternativeProfile" # A unique name that lets you have multiple instances of discord with unique profiles

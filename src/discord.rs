@@ -1,5 +1,8 @@
 use std::{error::Error, path::PathBuf};
 
+/// Returns the path to the Discord executable based on the Discord folder.
+///
+/// e.g. "C:\Users\Megu\AppData\Local\discordptb" -> "C:\Users\Megu\AppData\Local\discordptb\app-1.0.9023\Discord.exe"
 pub fn get_discord_executable(path: &str) -> Result<PathBuf, Box<dyn Error>> {
     let mut new_path = PathBuf::from(path);
 

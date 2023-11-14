@@ -1,4 +1,3 @@
-#![windows_subsystem = "windows"]
 use std::{ffi::CString, mem::MaybeUninit, ptr::null_mut};
 
 use clap::Parser;
@@ -16,7 +15,7 @@ static DLL_PATH: &str = "libmodhook.dll";
 #[derive(Parser, Debug)]
 #[command(name = "modhook", verbatim_doc_comment)]
 /// Discord ModHook
-/// For more information, visit: https://github.com/MeguminSama/ModHook
+/// For more information, visit: <https://github.com/MeguminSama/ModHook>
 pub struct Args {
     /// Path to the Discord folder.
     /// Example: --discord-path "c:\users\megu\appdata\roaming\discordptb"
@@ -27,6 +26,19 @@ pub struct Args {
     /// Example: --mod-entrypoint "c:\users\megu\vencord\patcher.js"
     #[arg(short, long, verbatim_doc_comment)]
     pub mod_entrypoint: String,
+
+    /// Modded ASAR filename.
+    ///
+    /// This is the file that the mod (e.g. Vencord) loads
+    /// to return to the original Discord context.
+    ///
+    /// This is NOT required for Vencord or Replugged.
+    ///
+    /// ModHook will redirect calls to this file to the original app.asar (e.g. _app.asar -> app.asar)
+    ///
+    /// example: --modded-asar-filename "_app.asar"
+    #[arg(short = 'f', long, verbatim_doc_comment)]
+    pub modded_asar_filename: Option<String>,
 
     /// Path to check for to revert to default app.asar behaviour after the mod has loaded.
     /// Example: --toggle-query "vencord\patcher.js"
@@ -64,6 +76,7 @@ fn main() {
         mod_entrypoint: args.mod_entrypoint,
         toggle_query: args.toggle_query,
         custom_data_dir: args.custom_data_dir,
+        modded_asar_filename: args.modded_asar_filename,
     };
 
     unsafe {
