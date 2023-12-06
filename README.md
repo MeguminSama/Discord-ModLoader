@@ -35,6 +35,7 @@ Change the `-d` flag if you want to use a different Discord branch.
 "C:\path\to\modhook.exe"
 	-d "C:\Users\megu\AppData\Local\Discord"
 	-m "c:\path\to\moonlight\dist\injector.js"
+	--moonlight
 ```
 
 ## All configuration flags
