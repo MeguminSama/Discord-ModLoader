@@ -31,6 +31,12 @@ pub struct Environment {
     ///
     /// e.g. "_app.asar"
     pub modded_asar_filename: Option<String>,
+
+    /// Whether or not the mod is the moonlight mod.
+    ///
+    /// Moonlight uses `require(entrypoint).inject(asarPath);`
+    /// instead of the usual `require(entrypoint);`
+    pub is_moonlight: bool,
 }
 
 #[allow(dead_code)]
@@ -43,6 +49,7 @@ impl Environment {
             toggle_query: None,
             custom_data_dir: None,
             modded_asar_filename: None,
+            is_moonlight: false,
         };
 
         if let Ok(path) = std::env::var("MODHOOK_ASAR_PATH") {
@@ -66,6 +73,10 @@ impl Environment {
             env.modded_asar_filename = Some(file);
         } else {
             env.modded_asar_filename = Some("_app.asar".to_string());
+        }
+
+        if let Ok(is_moonlight) = std::env::var("MODHOOK_IS_MOONLIGHT") {
+            env.is_moonlight = is_moonlight == "true";
         }
 
         env
@@ -99,5 +110,9 @@ impl Environment {
         // Currently supported mods:
         // - Vencord
         std::env::set_var("DISABLE_UPDATER_AUTO_PATCHING", "true");
+
+        if self.is_moonlight {
+            std::env::set_var("MODHOOK_IS_MOONLIGHT", "true");
+        }
     }
 }

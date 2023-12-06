@@ -54,6 +54,13 @@ pub struct Args {
     /// Example: --asar-path "c:\users\megu\vencord\app.asar"
     #[arg(short, long, verbatim_doc_comment)]
     pub asar_path: Option<String>,
+
+    /// Whether or not the mod is the moonlight mod.
+    /// Example: --moonlight
+    /// Moonlight uses `require(entrypoint).inject(asarPath);`
+    /// instead of the usual `require(entrypoint);`
+    #[arg(value_enum, long = "moonlight", verbatim_doc_comment)]
+    pub is_moonlight: bool,
 }
 
 fn main() {
@@ -77,6 +84,7 @@ fn main() {
         toggle_query: args.toggle_query,
         custom_data_dir: args.custom_data_dir,
         modded_asar_filename: args.modded_asar_filename,
+        is_moonlight: args.is_moonlight,
     };
 
     unsafe {
