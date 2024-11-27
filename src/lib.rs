@@ -42,7 +42,7 @@ unsafe extern "stdcall" fn DllMain(
     DetourUpdateThread(GetCurrentThread() as _);
 
     O_ENTRYPOINT = DetourGetEntryPoint(null_mut());
-    DetourAttach(&mut O_ENTRYPOINT, main as _);
+    DetourAttach(&raw mut O_ENTRYPOINT, main as _);
 
     detours::win32::init_detours();
 
