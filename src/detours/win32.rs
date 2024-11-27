@@ -26,13 +26,13 @@ static mut O_CREATE_PROCESS_W: *mut c_void = 0 as _;
 
 pub unsafe fn init_detours() {
     O_CREATE_FILE_W = CreateFileW as *mut c_void;
-    DetourAttach(&mut O_CREATE_FILE_W, create_file_w as _);
+    DetourAttach(&raw mut O_CREATE_FILE_W, create_file_w as _);
 
     O_GET_FILE_ATTRIBUTES_W = GetFileAttributesW as *mut c_void;
-    DetourAttach(&mut O_GET_FILE_ATTRIBUTES_W, get_file_attributes_w as _);
+    DetourAttach(&raw mut O_GET_FILE_ATTRIBUTES_W, get_file_attributes_w as _);
 
     O_CREATE_PROCESS_W = CreateProcessW as *mut c_void;
-    DetourAttach(&mut O_CREATE_PROCESS_W, create_process_w as _);
+    DetourAttach(&raw mut O_CREATE_PROCESS_W, create_process_w as _);
 }
 
 unsafe fn create_file_w(

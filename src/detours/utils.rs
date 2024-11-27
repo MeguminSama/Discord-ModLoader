@@ -6,11 +6,12 @@ const KNOWN_ASAR_NAMES: &[&str] = &["_app.asar", "app.orig.asar"];
 
 /// Map original filenames to our modified filenames.
 pub unsafe fn file_name_handler(path: &str) -> String {
-    let asar_toggle_query = std::env::var("MODHOOK_TOGGLE_QUERY").unwrap();
-    let path = path.to_lowercase();
-    let pathbuf = PathBuf::from(&path.clone());
+    let asar_toggle_query = std::env::var("MODHOOK_TOGGLE_QUERY")
+        .unwrap()
+        .to_lowercase();
+    let pathbuf = PathBuf::from(&path);
 
-    if path.contains(&asar_toggle_query) {
+    if path.to_lowercase().contains(&asar_toggle_query) {
         MOD_DONE_LOADING = true;
     }
 
