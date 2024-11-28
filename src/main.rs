@@ -1,138 +1,76 @@
-use std::{ffi::CString, mem::MaybeUninit, ptr::null_mut};
-
 use clap::Parser;
-use detours_sys::{DetourCreateProcessWithDllExA, _PROCESS_INFORMATION, _STARTUPINFOA};
-use env::Environment;
-use winapi::um::{
-    handleapi::CloseHandle, processthreadsapi::ResumeThread, winbase::CREATE_SUSPENDED,
-};
 
-mod discord;
-mod env;
+use discord_modloader_lib::{config, get_or_write_cache};
 
-static DLL_PATH: &str = "libmodhook.dll";
-
-#[derive(Parser, Debug)]
-#[command(name = "modhook", verbatim_doc_comment)]
-/// Discord ModHook
-/// For more information, visit: <https://github.com/MeguminSama/ModHook>
-pub struct Args {
-    /// Path to the Discord folder.
-    /// Example: --discord-path "c:\users\megu\appdata\roaming\discordptb"
-    #[arg(short, long, verbatim_doc_comment)]
-    pub discord_path: String,
-
-    /// Path to the mods' JS entrypoint.
-    /// Example: --mod-entrypoint "c:\users\megu\vencord\patcher.js"
-    #[arg(short, long, verbatim_doc_comment)]
-    pub mod_entrypoint: String,
-
-    /// Modded ASAR filename.
-    ///
-    /// This is the file that the mod (e.g. Vencord) loads
-    /// to return to the original Discord context.
-    ///
-    /// This is NOT required for Vencord or Replugged.
-    ///
-    /// ModHook will redirect calls to this file to the original app.asar (e.g. _app.asar -> app.asar)
-    ///
-    /// example: --modded-asar-filename "_app.asar"
-    #[arg(short = 'f', long, verbatim_doc_comment)]
-    pub modded_asar_filename: Option<String>,
-
-    /// Path to check for to revert to default app.asar behaviour after the mod has loaded.
-    /// Example: --toggle-query "vencord\patcher.js"
-    #[arg(short, long, verbatim_doc_comment)]
-    pub toggle_query: Option<String>,
-
-    /// Custom name for AppData profile.
-    /// Example: --custom-data-dir "MyCustomProfile"
-    #[arg(short, long, verbatim_doc_comment)]
-    pub custom_data_dir: Option<String>,
-
-    /// ModHook ASAR replacement.
-    /// Example: --asar-path "c:\users\megu\vencord\app.asar"
-    #[arg(short, long, verbatim_doc_comment)]
-    pub asar_path: Option<String>,
-
-    /// Whether or not the mod is the moonlight mod.
-    /// Example: --moonlight
-    /// Moonlight uses `require(entrypoint).inject(asarPath);`
-    /// instead of the usual `require(entrypoint);`
-    #[arg(value_enum, long = "moonlight", verbatim_doc_comment)]
-    pub is_moonlight: bool,
+#[derive(clap::Parser, Debug)]
+struct Args {
+    #[clap(short, long)]
+    pub instance: String,
 }
 
+#[cfg(target_os = "macos")]
 fn main() {
+    println!("macOS is not supported yet. Feel free to submit a PR.");
+    println!("https://github.com/MeguminSama/Discord-Modloader");
+}
+
+#[cfg(not(target_os = "macos"))]
+fn main() {
+    let mut config = config::Config::init();
+    config.validate();
+
     let args: Args = Args::parse();
 
-    let target_exe = discord::get_discord_executable(&args.discord_path).unwrap();
-    let target_exe = target_exe.to_str().unwrap();
-
-    let mut asar_path = std::env::current_dir().unwrap();
-
-    asar_path.push("app.asar");
-
-    let asar_path = asar_path.to_str().unwrap().to_string();
-
-    let mut dll_path = std::env::current_dir().unwrap();
-    dll_path.push(DLL_PATH);
-
-    let environment = Environment {
-        asar_path: Some(asar_path),
-        mod_entrypoint: args.mod_entrypoint,
-        toggle_query: args.toggle_query,
-        custom_data_dir: args.custom_data_dir,
-        modded_asar_filename: args.modded_asar_filename,
-        is_moonlight: args.is_moonlight,
-    };
-
-    unsafe {
-        inject(dll_path.to_str().unwrap(), target_exe, &environment).unwrap();
+    if let Some(instance) = config.instances.get(&args.instance) {
+        dbg!(&instance);
+        load_profile(&config, instance);
+    } else {
+        println!("Instance not found. Make sure it exists in the instances directory.");
     }
 }
 
-/// # Safety
-/// This function is unsafe because it calls the WinAPI.
-pub unsafe fn inject(
-    dll_path: &str,
-    target_exe: &str,
-    environment: &Environment,
-) -> std::io::Result<()> {
-    let cstr_target_exe = CString::new(target_exe)?;
-    let cstr_dll_path = CString::new(dll_path)?;
-
-    let mut process_info: _PROCESS_INFORMATION = MaybeUninit::zeroed().assume_init();
-    let mut startup_info: _STARTUPINFOA = MaybeUninit::zeroed().assume_init();
-
-    environment.apply();
-
-    let result = DetourCreateProcessWithDllExA(
-        null_mut(),
-        cstr_target_exe.as_ptr() as *mut i8,
-        null_mut(),
-        null_mut(),
-        0,
-        CREATE_SUSPENDED,
-        null_mut(),
-        null_mut(),
-        &mut startup_info as *mut _,
-        &mut process_info as *mut _,
-        cstr_dll_path.as_ptr(),
-        None,
-    );
-
-    if result == 0 {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "Failed to create process",
-        ));
+#[cfg(target_os = "linux")]
+fn load_profile(config: &config::Config, instance: &config::Instance) {
+    println!("Loading Instance: {}", instance.name);
+    if let Some(ref profile_path) = instance.profile_path {
+        println!("On profile: {}", profile_path)
     }
 
-    ResumeThread(process_info.hThread as _);
+    let asar_path = get_or_write_cache(instance, config.mods.get(&instance.r#mod).unwrap());
 
-    CloseHandle(process_info.hProcess as _);
-    CloseHandle(process_info.hThread as _);
+    let mut target = std::process::Command::new(instance.path.clone())
+        .current_dir(std::path::Path::new(&instance.path).parent().unwrap())
+        // TODO: move libmodhook.so into global libs dir
+        .env(
+            "LD_PRELOAD",
+            "/home/megu/Workspace/Discord/Discord-ModLoader/target/debug/libdiscord_modloader.so",
+        )
+        .env("MODLOADER_ASAR_PATH", asar_path)
+        .args(["--trace-warnings"])
+        .spawn()
+        .expect("Failed to launch instance.");
 
-    Ok(())
+    target
+        .wait()
+        .expect("Failed to wait for instance to finish.");
+}
+
+#[cfg(target_os = "windows")]
+fn load_profile(config: &config::Config, instance: &config::Instance) {
+    println!("Loading Instance: {}", instance.name);
+    if let Some(ref profile_path) = instance.profile_path {
+        println!("On profile: {}", profile_path)
+    }
+
+    // let asar_path = get_or_write_cache(instance, config.mods.get(&instance.r#mod).unwrap());
+
+    let mut target = std::process::Command::new(instance.path.clone())
+        .current_dir(std::path::Path::new(&instance.path).parent().unwrap())
+        .args(["--trace-warnings"])
+        .spawn()
+        .expect("Failed to launch instance.");
+
+    target
+        .wait()
+        .expect("Failed to wait for instance to finish.");
 }
