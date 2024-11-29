@@ -1,11 +1,19 @@
 pub mod config;
+pub mod discord;
 
 #[cfg(target_os = "linux")]
 mod unix;
 
+#[cfg(target_os = "windows")]
+mod windows;
+
 #[cfg(target_os = "linux")]
 #[allow(unused_imports)]
 pub use unix::*;
+
+#[cfg(target_os = "windows")]
+#[allow(unused_imports)]
+pub use windows::*;
 
 pub fn get_or_write_cache(instance: &config::Instance, mod_: &config::Mod) -> String {
     let cache_dir = dirs::cache_dir().unwrap().join("discord-modloader");
@@ -34,14 +42,20 @@ pub fn get_or_write_cache(instance: &config::Instance, mod_: &config::Mod) -> St
     }
 
     let mod_entrypoint = std::path::Path::new(&mod_.path).join(&mod_.entrypoint);
-    let mod_entrypoint = mod_entrypoint.to_str().unwrap();
+    let mod_entrypoint = mod_entrypoint.to_str().unwrap().replace("\\", "\\\\");
 
-    let profile_dir = instance.profile_path.clone().unwrap_or_default();
+    let profile_dir = instance
+        .profile_path
+        .clone()
+        .unwrap_or_default()
+        .replace("\\", "\\\\");
+
+    dbg!(&profile_dir);
 
     let profile_loader = instance.profile.as_ref().map(|_| {
         ASAR_CUSTOM_PROFILE_JS
             .replace("__CUSTOM_PROFILE_DIR__", &profile_dir)
-            .replace("__MOD_ENTRYPOINT_FILE__", mod_entrypoint)
+            .replace("__MOD_ENTRYPOINT_FILE__", &mod_entrypoint)
     });
 
     let custom_loader = if let Some(loader) = &mod_.loader {
@@ -50,7 +64,7 @@ pub fn get_or_write_cache(instance: &config::Instance, mod_: &config::Mod) -> St
             .as_ref()
             .map(|p| {
                 p.replace("__CUSTOM_PROFILE_DIR__", &profile_dir)
-                    .replace("__MOD_ENTRYPOINT_FILE__", mod_entrypoint)
+                    .replace("__MOD_ENTRYPOINT_FILE__", &mod_entrypoint)
             })
             .unwrap_or_default();
 
@@ -59,7 +73,7 @@ pub fn get_or_write_cache(instance: &config::Instance, mod_: &config::Mod) -> St
             .as_ref()
             .map(|p| {
                 p.replace("__CUSTOM_PROFILE_DIR__", &profile_dir)
-                    .replace("__MOD_ENTRYPOINT_FILE__", mod_entrypoint)
+                    .replace("__MOD_ENTRYPOINT_FILE__", &mod_entrypoint)
             })
             .unwrap_or(profile_loader.unwrap_or_default());
 
@@ -68,16 +82,16 @@ pub fn get_or_write_cache(instance: &config::Instance, mod_: &config::Mod) -> St
             .as_ref()
             .map(|r| {
                 r.replace("__CUSTOM_PROFILE_DIR__", &profile_dir)
-                    .replace("__MOD_ENTRYPOINT_FILE__", mod_entrypoint)
+                    .replace("__MOD_ENTRYPOINT_FILE__", &mod_entrypoint)
             })
-            .unwrap_or(format!(r#"require("{}")"#, mod_entrypoint));
+            .unwrap_or(format!(r#"require("{}")"#, &mod_entrypoint));
 
         let suffix = loader
             .suffix
             .as_ref()
             .map(|s| {
                 s.replace("__CUSTOM_PROFILE_DIR__", &profile_dir)
-                    .replace("__MOD_ENTRYPOINT_FILE__", mod_entrypoint)
+                    .replace("__MOD_ENTRYPOINT_FILE__", &mod_entrypoint)
             })
             .unwrap_or_default();
 

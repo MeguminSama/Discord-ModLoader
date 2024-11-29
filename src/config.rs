@@ -42,7 +42,10 @@ impl Config {
     }
 
     pub fn init() -> Config {
-        let profiles_dir = dirs::data_local_dir().unwrap().join("discord-modloader");
+        let profiles_dir = dirs::data_dir()
+            .unwrap()
+            .join("discord-modloader")
+            .join("profiles");
 
         println!("Loading from profile directory: {}", profiles_dir.display());
 

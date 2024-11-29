@@ -5,12 +5,14 @@ version = "2.0.0-beta1"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "discord_modloader_lib"
+name = "libdiscordmodloader"
 
 [dependencies]
 asar = "0.3.0"
 clap = { version = "4.5.20", features = ["derive"] }
+dioxus = "0.5.6"
 dirs = "5.0.1"
+freya = "0.2.2"
 serde = { version = "1.0.210", features = ["serde_derive"] }
 toml = "0.8.19"
 
