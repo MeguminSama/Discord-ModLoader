@@ -589,7 +589,7 @@ dependencies = [
  "bitflags 2.6.0",
  "cexpr",
  "clang-sys",
- "itertools 0.13.0",
+ "itertools 0.11.0",
  "log",
  "prettyplease",
  "proc-macro2",
@@ -1437,18 +1437,9 @@ dependencies = [
 name = "discord-modloader"
 version = "2.0.0"
 dependencies = [
- "asar",
  "clap",
- "detours-sys",
- "dioxus",
- "dirs",
- "freya",
- "libc",
- "retour",
- "serde",
- "toml",
- "widestring",
- "winapi",
+ "gui",
+ "libdiscord-modloader",
 ]
 
 [[package]]
@@ -2242,6 +2233,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "gui"
+version = "0.1.0"
+dependencies = [
+ "dioxus",
+ "freya",
+]
+
+[[package]]
 name = "h2"
 version = "0.4.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2950,6 +2949,21 @@ name = "libc"
 version = "0.2.167"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "09d6582e104315a817dff97f75133544b2e094ee22447d2acf4a74e189ba06fc"
+
+[[package]]
+name = "libdiscord-modloader"
+version = "0.1.0"
+dependencies = [
+ "asar",
+ "detours-sys",
+ "dirs",
+ "libc",
+ "retour",
+ "serde",
+ "toml",
+ "widestring",
+ "winapi",
+]
 
 [[package]]
 name = "libfuzzer-sys"

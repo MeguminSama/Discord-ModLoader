@@ -1,6 +1,6 @@
 use clap::Parser;
 
-use libdiscordmodloader::{config, get_or_write_cache};
+use discord_modloader::{config, get_or_write_cache};
 
 #[derive(clap::Parser, Debug)]
 struct Args {
@@ -37,15 +37,15 @@ unsafe fn load_profile(config: &config::Config, instance: &config::Instance) {
 
     let asar_path = get_or_write_cache(instance, config.mods.get(&instance.r#mod).unwrap());
 
+    let current_exe = std::env::current_exe().unwrap();
+    let shared_object = current_exe.with_file_name("libdiscord_modloader.so");
+
     let mut target = std::process::Command::new(instance.path.clone())
         .current_dir(std::path::Path::new(&instance.path).parent().unwrap())
         // TODO: move libmodhook.so into global libs dir
-        .env(
-            "LD_PRELOAD",
-            "/home/megu/Workspace/Discord/Discord-ModLoader/target/debug/libdiscord_modloader.so",
-        )
+        .env("LD_PRELOAD", shared_object.to_str().unwrap())
         .env("MODLOADER_ASAR_PATH", asar_path)
-        .args(["--trace-warnings"])
+        // .args(["--trace-warnings"])
         .spawn()
         .expect("Failed to launch instance.");
 
