@@ -25,4 +25,5 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - run: cargo install cargo-packager --locked
       - run: cargo release
