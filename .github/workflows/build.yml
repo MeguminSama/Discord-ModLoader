@@ -27,7 +27,7 @@ jobs:
       - name: release
         uses: svenstaro/upload-release-action@2.9.0
         with:
-          repo_token: ${{ secrets.RELEASE_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: dist/discord-modloader_*
           tag: ${{ github.ref }}
           overwrite: true

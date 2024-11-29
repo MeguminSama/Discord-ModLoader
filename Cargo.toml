@@ -34,20 +34,33 @@ detours-sys = { version = "0.1.2" }
 widestring = "1.1.0"
 
 [target.'cfg(unix)'.dependencies]
-libc = "0.2.166"
+libc = "0.2.167"
 retour = { version = "0.3.1", features = ["static-detour"] }
 
 [package.metadata.packager]
-before-packaging-command = "cargo build --release --all"
-out-dir = "./dist"
-product-name = "Discord ModLoader"
+product-name = "Discord Modloader"
 identifier = "dev.megu.discord.modloader"
-binaries = [{ path = "discord-modloader.exe", main = true }]
+authors = ["Megumin <megumin@megu.dev"]
+homepage = "https://github.com/MeguminSama/Discord-ModLoader"
+out-dir = "./dist"
+before-packaging-command = "cargo build --release --all"
 resources = [
     "README.md",
     "LICENSE",
     "templates",
     { src = "target/release/libdiscordmodloader.dll", target = "libdiscordmodloader.dll" },
+    { src = "target/release/libdiscordmodloader.so", target = "libdiscordmodloader.so" },
 ]
 log-level = "trace"
-# icons = ["32x32.png"]
+icons = [
+    "assets/logo_development.svg",
+    "assets/logo_development.ico",
+    "assets/32x32.png",
+    "assets/64x64.png",
+    "assets/128x128.png",
+    "assets/256x256.png",
+    "assets/512x512.png",
+    "assets/1024x1024.png",
+    "assets/2048x2048.png",
+    "assets/4096x4096.png",
+]
