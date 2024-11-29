@@ -1,7 +1,11 @@
 [package]
 edition = "2021"
-name = "discord_modloader"
-version = "2.0.0-beta1"
+name = "discord-modloader"
+description = "An in-memory mod loader for Discord"
+version = "2.0.0"
+license = "LGPL-3.0"
+authors = ["Megumin <megumin@megu.dev>"]
+repository = "https://github.com/MeguminSama/Discord-ModLoader/"
 
 [lib]
 crate-type = ["cdylib", "lib"]
@@ -12,7 +16,7 @@ asar = "0.3.0"
 clap = { version = "4.5.20", features = ["derive"] }
 dioxus = "0.5.6"
 dirs = "5.0.1"
-freya = "0.2.2"
+freya = { git = "https://github.com/marc2332/freya.git", version = "0.2.2" }
 serde = { version = "1.0.210", features = ["serde_derive"] }
 toml = "0.8.19"
 
@@ -33,3 +37,18 @@ widestring = "1.1.0"
 [target.'cfg(unix)'.dependencies]
 libc = "0.2.166"
 retour = { version = "0.3.1", features = ["static-detour"] }
+
+[package.metadata.packager]
+before-packaging-command = "cargo build --release --all"
+out-dir = "./dist"
+product-name = "Discord ModLoader"
+identifier = "dev.megu.discord.modloader"
+binaries = [{ path = "discord-modloader.exe", main = true }]
+resources = [
+    "README.md",
+    "LICENSE",
+    "templates",
+    { src = "target/release/libdiscordmodloader.dll", target = "libdiscordmodloader.dll" },
+]
+log-level = "trace"
+# icons = ["32x32.png"]
