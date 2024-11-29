@@ -19,9 +19,6 @@ jobs:
 
     runs-on: ${{ matrix.platform }}
 
-    permissions:
-      contents: write
-
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
@@ -31,6 +28,8 @@ jobs:
   release:
     needs: package
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Release
         uses: svenstaro/upload-release-action@2.9.0
