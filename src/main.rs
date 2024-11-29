@@ -22,7 +22,6 @@ fn main() {
     let args: Args = Args::parse();
 
     if let Some(instance) = config.instances.get(&args.instance) {
-        dbg!(&instance);
         unsafe { load_profile(&config, instance) };
     } else {
         println!("Instance not found. Make sure it exists in the instances directory.");
