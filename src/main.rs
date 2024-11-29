@@ -57,9 +57,12 @@ fn load_profile(config: &config::Config, instance: &config::Instance) {
 #[cfg(target_os = "windows")]
 unsafe fn load_profile(config: &config::Config, instance: &config::Instance) {
     use detours_sys::{DetourCreateProcessWithDllExA, _PROCESS_INFORMATION, _STARTUPINFOA};
-    use libdiscordmodloader::discord::get_discord_executable;
+    use libdiscordmodloader::discord::get_discord_exe;
     use winapi::um::{
-        handleapi::CloseHandle, processthreadsapi::ResumeThread, winbase::CREATE_SUSPENDED,
+        handleapi::CloseHandle,
+        processthreadsapi::ResumeThread,
+        winbase::CREATE_SUSPENDED,
+        winuser::{MessageBoxA, MB_ICONERROR},
     };
 
     println!("Loading Instance: {}", instance.name);
@@ -69,25 +72,31 @@ unsafe fn load_profile(config: &config::Config, instance: &config::Instance) {
 
     let asar_path = get_or_write_cache(instance, config.mods.get(&instance.r#mod).unwrap());
 
-    let mut process_info: _PROCESS_INFORMATION = unsafe { std::mem::zeroed() };
-    let mut startup_info: _STARTUPINFOA = unsafe { std::mem::zeroed() };
+    let current_exe = std::env::current_exe().unwrap();
+    let lp_current_directory = current_exe.parent().unwrap().to_str().unwrap();
+    let dll = current_exe.with_file_name("libdiscordmodloader.dll");
 
-    let discord_exe =
-        get_discord_executable(&instance.path).expect("Failed to get Discord executable.");
-    let discord_exe = std::ffi::CString::new(discord_exe.to_str().unwrap()).unwrap();
-    let lp_current_directory =
-        std::ffi::CString::new("W:\\Discord\\ModHook\\target\\debug").unwrap();
-    let dll = std::ffi::CString::new("libdiscordmodloader.dll").unwrap();
+    if !dll.exists() {
+        MessageBoxA(
+            std::ptr::null_mut(),
+            c"libdiscordmodloader.dll not found.\nPlease verify your installation.".as_ptr(),
+            c"Error loading modloader".as_ptr(),
+            MB_ICONERROR,
+        );
+        panic!("libdiscordmodloader.dll not found.");
+    }
 
-    dbg!(&discord_exe);
-    dbg!(&lp_current_directory);
-    dbg!(&dll);
+    let discord_exe = get_discord_exe(&instance.path).expect("Failed to get Discord executable.");
 
     std::env::set_var("MODLOADER_ASAR_PATH", asar_path);
-    std::env::set_var(
-        "MODLOADER_DLL_PATH",
-        "W:\\Discord\\ModHook\\target\\debug\\libdiscordmodloader.dll",
-    );
+    std::env::set_var("MODLOADER_DLL_PATH", &dll);
+
+    let dll = std::ffi::CString::new(dll.to_str().unwrap()).unwrap();
+    let lp_current_directory = std::ffi::CString::new(lp_current_directory).unwrap();
+
+    let mut process_info: _PROCESS_INFORMATION = unsafe { std::mem::zeroed() };
+    let mut startup_info: _STARTUPINFOA = unsafe { std::mem::zeroed() };
+    let discord_exe = std::ffi::CString::new(discord_exe.to_str().unwrap()).unwrap();
 
     let result = DetourCreateProcessWithDllExA(
         std::ptr::null_mut(),
@@ -97,7 +106,7 @@ unsafe fn load_profile(config: &config::Config, instance: &config::Instance) {
         0,
         CREATE_SUSPENDED,
         std::ptr::null_mut(),
-        std::ptr::null_mut(),
+        lp_current_directory.as_ptr(),
         &raw mut startup_info,
         &raw mut process_info,
         dll.as_ptr(),
@@ -105,7 +114,12 @@ unsafe fn load_profile(config: &config::Config, instance: &config::Instance) {
     );
 
     if result == 0 {
-        let err = std::io::Error::last_os_error();
+        MessageBoxA(
+            std::ptr::null_mut(),
+            c"Failed to inject DLL into Discord".as_ptr(),
+            c"Error launching Discord".as_ptr(),
+            MB_ICONERROR,
+        );
         panic!("Failed to create process with DLL.");
     }
 

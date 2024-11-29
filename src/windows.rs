@@ -23,8 +23,6 @@ use winapi::{
     },
 };
 
-use winapi::um::consoleapi::AllocConsole;
-
 static MODLOADER_ASAR_PATH: LazyLock<String> =
     LazyLock::new(|| std::env::var("MODLOADER_ASAR_PATH").unwrap());
 
