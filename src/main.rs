@@ -29,7 +29,7 @@ fn main() {
 }
 
 #[cfg(target_os = "linux")]
-fn load_profile(config: &config::Config, instance: &config::Instance) {
+unsafe fn load_profile(config: &config::Config, instance: &config::Instance) {
     println!("Loading Instance: {}", instance.name);
     if let Some(ref profile_path) = instance.profile_path {
         println!("On profile: {}", profile_path)

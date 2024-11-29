@@ -1,2 +1,2 @@
 [alias]
-release = "packager --release -f all"
+release = "packager --release -f all -v"

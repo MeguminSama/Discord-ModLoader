@@ -30,7 +30,6 @@ winapi = { version = "0.3.9", features = [
     "memoryapi",
     "namedpipeapi",
 ] }
-dll-syringe = "0.15.2"
 detours-sys = { version = "0.1.2" }
 widestring = "1.1.0"
 
