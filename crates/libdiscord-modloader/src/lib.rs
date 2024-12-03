@@ -1,5 +1,9 @@
 pub mod config;
 pub mod discord;
+pub mod paths;
+
+use libc::MOD_FREQUENCY;
+use paths::ensure_dir;
 
 #[cfg(target_os = "linux")]
 mod unix;
@@ -15,102 +19,102 @@ pub use unix::*;
 #[allow(unused_imports)]
 pub use windows::*;
 
-pub fn get_or_write_cache(instance: &config::Instance, mod_: &config::Mod) -> String {
-    let cache_dir = dirs::cache_dir().unwrap().join("discord-modloader");
-    if !cache_dir.exists() {
-        std::fs::create_dir_all(&cache_dir).unwrap();
-    }
-
-    let asar_dir = cache_dir.join("asar");
-    if !asar_dir.exists() {
-        std::fs::create_dir_all(&asar_dir).unwrap();
-    }
-
-    let cached_asar_path = asar_dir.join(format!("{}-{}.asar", instance.r#mod, mod_.name));
-    // TODO: Figure out a way to cache, while also regenerating if the mod or instance config changes.
-    // if cached_asar_path.exists() {
-    //     return cached_asar_path.to_str().unwrap().to_owned();
-    // }
-
+pub fn init_current_cache(cfg: &config::Config, profile_id: &str, instance_id: &str) -> String {
     static ASAR_CUSTOM_PROFILE_JS: &str = include_str!("./asar/custom_profile.js");
+    static ASAR_PACKAGE_JSON: &str = include_str!("./asar/package.json");
 
-    if let Some(ref profile) = instance.profile_path {
-        let profile_path = std::path::Path::new(profile);
-        if !profile_path.exists() {
-            std::fs::create_dir_all(profile_path).unwrap();
-        }
-    }
+    let asar_dir = ensure_dir(paths::data_asar_dir());
 
-    let mod_entrypoint = std::path::Path::new(&mod_.path).join(&mod_.entrypoint);
-    let mod_entrypoint = mod_entrypoint.to_str().unwrap().replace("\\", "\\\\");
+    let profile = cfg
+        .profiles
+        .get(profile_id)
+        .expect(&format!("Failed to find profile '{}'.", profile_id));
 
-    let profile_dir = instance
-        .profile_path
-        .clone()
-        .unwrap_or_default()
-        .replace("\\", "\\\\");
+    let instance = profile
+        .instances
+        .iter()
+        .find(|instance| instance.id == instance_id)
+        .expect(&format!("Failed to find instance '{}'.", instance_id));
 
-    dbg!(&profile_dir);
+    let r#mod = cfg
+        .mods
+        .get(&instance.mod_id)
+        .expect(&format!("Failed to find mod '{}'.", instance.mod_id));
 
-    let profile_loader = instance.profile.as_ref().map(|_| {
-        ASAR_CUSTOM_PROFILE_JS
-            .replace("__CUSTOM_PROFILE_DIR__", &profile_dir)
-            .replace("__MOD_ENTRYPOINT_FILE__", &mod_entrypoint)
-    });
+    let asar_cache_path = asar_dir.join(format!(
+        "{}-{}-{}.asar",
+        profile_id, instance_id, instance.mod_id
+    ));
 
-    let custom_loader = if let Some(loader) = &mod_.loader {
-        let prefix = loader
-            .prefix
-            .as_ref()
-            .map(|p| {
-                p.replace("__CUSTOM_PROFILE_DIR__", &profile_dir)
-                    .replace("__MOD_ENTRYPOINT_FILE__", &mod_entrypoint)
-            })
-            .unwrap_or_default();
-
-        let custom_profile = loader
-            .profile
-            .as_ref()
-            .map(|p| {
-                p.replace("__CUSTOM_PROFILE_DIR__", &profile_dir)
-                    .replace("__MOD_ENTRYPOINT_FILE__", &mod_entrypoint)
-            })
-            .unwrap_or(profile_loader.unwrap_or_default());
-
-        let require = loader
-            .require
-            .as_ref()
-            .map(|r| {
-                r.replace("__CUSTOM_PROFILE_DIR__", &profile_dir)
-                    .replace("__MOD_ENTRYPOINT_FILE__", &mod_entrypoint)
-            })
-            .unwrap_or(format!(r#"require("{}")"#, &mod_entrypoint));
-
-        let suffix = loader
-            .suffix
-            .as_ref()
-            .map(|s| {
-                s.replace("__CUSTOM_PROFILE_DIR__", &profile_dir)
-                    .replace("__MOD_ENTRYPOINT_FILE__", &mod_entrypoint)
-            })
-            .unwrap_or_default();
-
-        format!("{}\n{}\n{}\n{}", prefix, custom_profile, require, suffix)
+    let profile_dir = if profile.profile.use_default_profile {
+        let profile_dir = ensure_dir(paths::data_profiles_dir().join(profile_id));
+        let profile_dir = profile_dir.to_str().unwrap().replace("\\", "\\\\");
+        Some(profile_dir)
     } else {
-        format!(
-            "{}\nrequire(\"{}\")",
-            profile_loader.unwrap_or_default(),
-            mod_entrypoint
-        )
+        None
     };
 
+    let mod_entrypoint = std::path::Path::new(&r#mod.path).join(&r#mod.entrypoint);
+    let mod_entrypoint = mod_entrypoint.to_str().unwrap().replace("\\", "\\\\");
+
+    let mut custom_loader = String::from("console.log(\"Launching with Discord Modloader.\");\n");
+
+    // If using a custom profile directory, insert this.
+    if let Some(ref profile_dir) = profile_dir {
+        let data = ASAR_CUSTOM_PROFILE_JS
+            .replace("__CUSTOM_PROFILE_DIR__", &profile_dir)
+            .replace("__MOD_ENTRYPOINT_FILE__", &mod_entrypoint);
+
+        custom_loader.push_str(&data);
+    }
+
+    if let Some(ref loader) = r#mod.loader {
+        // Users can provide a custom prefix in the profile TOML.
+        if let Some(ref prefix) = loader.prefix {
+            let mut prefix = prefix.replace("__MOD_ENTRYPOINT_FILE__", &mod_entrypoint);
+
+            if let Some(ref profile_dir) = profile_dir {
+                prefix = prefix.replace("__CUSTOM_PROFILE_DIR__", &profile_dir);
+            }
+
+            custom_loader.push_str(&prefix);
+        }
+
+        // If the user provides a custom require, use that instead of the default.
+        if let Some(ref require) = loader.require {
+            let mut require = require.replace("__MOD_ENTRYPOINT_FILE__", &mod_entrypoint);
+
+            if let Some(ref profile_dir) = profile_dir {
+                require = require.replace("__CUSTOM_PROFILE_DIR__", &profile_dir);
+            }
+
+            custom_loader.push_str(&require);
+        } else {
+            custom_loader.push_str(&format!(r#"require("{}")"#, &mod_entrypoint));
+        }
+
+        // If the user provices a custom suffix, insert it.
+        if let Some(ref suffix) = loader.suffix {
+            let mut suffix = suffix.replace("__MOD_ENTRYPOINT_FILE__", &mod_entrypoint);
+
+            if let Some(ref profile_dir) = profile_dir {
+                suffix = suffix.replace("__CUSTOM_PROFILE_DIR__", &profile_dir);
+            }
+
+            custom_loader.push_str(&suffix);
+        }
+    } else {
+        custom_loader.push_str(&format!(r#"require("{}");"#, &mod_entrypoint));
+    }
+
     let mut asar = asar::AsarWriter::new();
+
     asar.write_file("index.js", custom_loader, false).unwrap();
-    asar.write_file("package.json", include_bytes!("./asar/package.json"), false)
+    asar.write_file("package.json", ASAR_PACKAGE_JSON, false)
         .unwrap();
 
-    asar.finalize(std::fs::File::create(&cached_asar_path).unwrap())
+    asar.finalize(std::fs::File::create(&asar_cache_path).unwrap())
         .unwrap();
 
-    cached_asar_path.to_str().unwrap().to_owned()
+    asar_cache_path.to_str().unwrap().to_owned()
 }

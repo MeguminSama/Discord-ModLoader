@@ -14,6 +14,7 @@ repository = "https://github.com/MeguminSama/Discord-ModLoader/"
 clap = { version = "4.5.20", features = ["derive"] }
 libdiscord-modloader = { path = "crates/libdiscord-modloader" }
 gui = { path = "crates/gui" }
+dirs = "5.0.1"
 
 [package.metadata.packager]
 product-name = "Discord Modloader"
@@ -25,9 +26,10 @@ before-packaging-command = "cargo build --release --all"
 resources = [
     "README.md",
     "LICENSE",
-    "templates",
-    { src = "target/release/libdiscordmodloader.dll", target = "libdiscordmodloader.dll" },
-    { src = "target/release/libdiscordmodloader.so", target = "libdiscordmodloader.so" },
+    { src = "configs/templates", target = "templates" },
+    { src = "configs/icons", target = "icons" },
+    { src = "target/release/libdiscord_modloader.dll", target = "libdiscord_modloader.dll" },
+    { src = "target/release/libdiscord_modloader.so", target = "libdiscord_modloader.so" },
 ]
 log-level = "trace"
 icons = [

@@ -1,11 +1,14 @@
 use clap::Parser;
 
-use discord_modloader::{config, get_or_write_cache};
+use discord_modloader::{config, init_current_cache};
 
 #[derive(clap::Parser, Debug)]
 struct Args {
     #[clap(short, long)]
-    pub instance: String,
+    pub profile: Option<String>,
+
+    #[clap(short, long)]
+    pub instance: Option<String>,
 }
 
 #[cfg(target_os = "macos")]
@@ -16,33 +19,57 @@ fn main() {
 
 #[cfg(not(target_os = "macos"))]
 fn main() {
-    let mut config = config::Config::init();
-    config.validate();
-
+    // TODO: Check if args are provided. If yes, don't load GUI.
     let args: Args = Args::parse();
 
-    if let Some(instance) = config.instances.get(&args.instance) {
-        unsafe { load_profile(&config, instance) };
+    if let (Some(profile_id), Some(instance_id)) = (args.profile, args.instance) {
+        let mut config = config::Config::init();
+        config.validate();
+
+        unsafe { load_profile(&config, &profile_id, &instance_id) };
     } else {
-        println!("Instance not found. Make sure it exists in the instances directory.");
+        gui::start_gui();
     }
 }
 
 #[cfg(target_os = "linux")]
-unsafe fn load_profile(config: &config::Config, instance: &config::Instance) {
-    println!("Loading Instance: {}", instance.name);
-    if let Some(ref profile_path) = instance.profile_path {
-        println!("On profile: {}", profile_path)
+unsafe fn load_profile(config: &config::Config, profile_id: &str, instance_id: &str) {
+    use discord_modloader::paths::{self, ensure_dir};
+
+    let profile = config
+        .profiles
+        .get(profile_id)
+        .expect(&format!("Failed to find profile '{}'.", profile_id));
+
+    // Try to use the local instance of libdiscord_modloader.so first.
+    let current_exe = std::env::current_exe().unwrap();
+    let mut shared_object = current_exe.with_file_name("libdiscord_modloader.so");
+
+    // If it doesn't exist, try to use the system-wide one.
+    if !shared_object.exists() {
+        let lib_path = std::path::PathBuf::from("/usr/lib/discord-modloader");
+        shared_object = lib_path.join("libdiscord_modloader.so");
+        if !shared_object.exists() {
+            panic!("libdiscord_modloader.so not found. Please report this on GitHub.");
+        }
     }
 
-    let asar_path = get_or_write_cache(instance, config.mods.get(&instance.r#mod).unwrap());
+    let asar_path = init_current_cache(config, profile_id, instance_id);
 
-    let current_exe = std::env::current_exe().unwrap();
-    let shared_object = current_exe.with_file_name("libdiscord_modloader.so");
+    let working_dir = if profile.profile.use_default_profile {
+        std::path::Path::new(&profile.discord.executable)
+            .parent()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string()
+    } else {
+        let profile_dir = ensure_dir(paths::data_profiles_dir().join(profile_id));
+        profile_dir.to_str().unwrap().to_string()
+    };
 
-    let mut target = std::process::Command::new(instance.path.clone())
-        .current_dir(std::path::Path::new(&instance.path).parent().unwrap())
-        // TODO: move libmodhook.so into global libs dir
+    let mut target = std::process::Command::new(&profile.discord.executable)
+        .current_dir(working_dir)
         .env("LD_PRELOAD", shared_object.to_str().unwrap())
         .env("MODLOADER_ASAR_PATH", asar_path)
         // .args(["--trace-warnings"])
@@ -70,7 +97,7 @@ unsafe fn load_profile(config: &config::Config, instance: &config::Instance) {
         println!("On profile: {}", profile_path)
     }
 
-    let asar_path = get_or_write_cache(instance, config.mods.get(&instance.r#mod).unwrap());
+    let asar_path = init_current_cache(instance, config.mods.get(&instance.r#mod).unwrap());
 
     let current_exe = std::env::current_exe().unwrap();
     let lp_current_directory = current_exe.parent().unwrap().to_str().unwrap();

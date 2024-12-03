@@ -250,7 +250,7 @@ unsafe extern "C" fn create_process_w(
     );
 
     if success != 1 {
-        eprintln!("[ModHook] Failed to create process");
+        eprintln!("[Discord Modloader] Failed to create process");
         return success;
     }
 

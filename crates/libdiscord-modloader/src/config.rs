@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+
+use crate::paths::{self, ensure_dir};
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -9,131 +11,76 @@ pub enum ConfigFile {
     Mod(Mod),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Config {
+    // pub instances: HashMap<String, Instance>,
+    pub profiles: HashMap<String, ProfileConfig>,
     pub mods: HashMap<String, Mod>,
-    pub instances: HashMap<String, Instance>,
 }
 
 impl Config {
     pub fn validate(&mut self) {
-        for (_, mod_) in self.mods.iter_mut() {
-            let entrypoint_exists = std::path::Path::new(&mod_.path)
-                .join(&mod_.entrypoint)
-                .exists();
+        // for (_, mod_) in self.mods.iter_mut() {
+        //     let entrypoint_exists = std::path::Path::new(&mod_.path)
+        //         .join(&mod_.entrypoint)
+        //         .exists();
 
-            mod_.is_valid = entrypoint_exists;
-        }
+        //     mod_.is_valid = entrypoint_exists;
+        // }
 
-        for (_, instance) in self.instances.iter_mut() {
-            if let Some(target_mod) = self.mods.get(&instance.r#mod) {
-                let asar_exists: bool = std::path::Path::new(&instance.path)
-                    .parent()
-                    .expect("Expected Discord executable path to have a parent.")
-                    .join("resources")
-                    .join("app.asar")
-                    .exists();
+        // for (_, instance) in self.instances.iter_mut() {
+        //     if let Some(target_mod) = self.mods.get(&instance.r#mod) {
+        //         let asar_exists: bool = std::path::Path::new(&instance.path)
+        //             .parent()
+        //             .expect("Expected Discord executable path to have a parent.")
+        //             .join("resources")
+        //             .join("app.asar")
+        //             .exists();
 
-                instance.is_valid = target_mod.is_valid && asar_exists;
-            } else {
-                instance.is_valid = false;
-            }
-        }
+        //         instance.is_valid = target_mod.is_valid && asar_exists;
+        //     } else {
+        //         instance.is_valid = false;
+        //     }
+        // }
     }
 
     pub fn init() -> Config {
-        let profiles_dir = dirs::data_dir()
-            .unwrap()
-            .join("discord-modloader")
-            .join("profiles");
+        let profiles_config_dir = ensure_dir(paths::config_profile_dir());
+        let mods_config_dir = ensure_dir(paths::config_mods_dir());
 
-        println!("Loading from profile directory: {}", profiles_dir.display());
+        let mut profile_configs = HashMap::new();
 
-        if !profiles_dir.exists() {
-            std::fs::create_dir_all(&profiles_dir).expect("Unable to create profiles directory.");
-        }
-
-        let configs_dir = dirs::config_local_dir().unwrap().join("discord-modloader");
-
-        let instances_dir = configs_dir.join("instances");
-        let mods_dir = configs_dir.join("mods");
-
-        if !instances_dir.exists() {
-            std::fs::create_dir_all(&instances_dir).expect("Unable to create instances directory.");
-        }
-
-        if !mods_dir.exists() {
-            std::fs::create_dir_all(&mods_dir).expect("Unable to create mods directory.");
-        }
-
-        let instances = std::fs::read_dir(&instances_dir).unwrap();
-        let mods = std::fs::read_dir(&mods_dir).unwrap();
-
-        println!("Loading instances from: {:?}", &instances_dir);
-
-        let mut mod_configs: HashMap<String, Mod> = HashMap::new();
-        for mod_file in mods {
-            let mod_path = mod_file.unwrap();
-            let mod_file = ConfigFile::from_file(mod_path.path().to_str().unwrap());
-            let mod_name = mod_path
-                .path()
-                .with_extension("")
-                .file_name()
-                .unwrap()
-                .to_str()
-                .unwrap()
-                .to_string();
-
-            if let ConfigFile::Mod(mut mod_file) = mod_file {
-                mod_file.config_path = mod_path
-                    .path()
-                    .canonicalize()
-                    .expect("Unable to locate config file.")
-                    .to_str()
-                    .unwrap()
-                    .to_string();
-                mod_configs.insert(mod_name, mod_file);
-            } else {
-                panic!("Instance file found in mods directory.");
+        for profile in paths::read_dir(&profiles_config_dir) {
+            if !profile.path().to_string_lossy().ends_with(".toml") {
+                continue;
             }
+            let id = profile.file_name().to_string_lossy().replace(".toml", "");
+
+            let profile = std::fs::read_to_string(profile.path()).unwrap();
+            let profile = toml::from_str::<ProfileConfig>(&profile).unwrap();
+
+            profile_configs.insert(id, profile);
         }
 
-        let mut instance_configs: HashMap<String, Instance> = HashMap::new();
-        for instance_file in instances {
-            let instance_path = instance_file.unwrap();
-            let instance_file = ConfigFile::from_file(instance_path.path().to_str().unwrap());
-            let instance_name = instance_path
-                .path()
-                .with_extension("")
-                .file_name()
-                .unwrap()
-                .to_str()
-                .unwrap()
-                .to_string();
+        let mut mod_configs = HashMap::new();
 
-            if let ConfigFile::Instance(mut instance_file) = instance_file {
-                instance_file.config_path = instance_path
-                    .path()
-                    .canonicalize()
-                    .expect("Unable to locate config file.")
-                    .to_str()
-                    .unwrap()
-                    .to_string();
-
-                instance_file.profile_path = instance_file
-                    .profile
-                    .as_ref()
-                    .map(|profile| profiles_dir.join(profile).to_str().unwrap().to_string());
-
-                instance_configs.insert(instance_name, instance_file);
-            } else {
-                panic!("Mod file found in instances directory.");
+        for mod_ in paths::read_dir(&mods_config_dir) {
+            if !mod_.path().to_string_lossy().ends_with(".toml") {
+                continue;
             }
+            let id = mod_.file_name().to_string_lossy().replace(".toml", "");
+
+            let mod_ = std::fs::read_to_string(mod_.path()).unwrap();
+            let mod_ = toml::from_str::<ModConfig>(&mod_).unwrap();
+
+            mod_configs.insert(id, mod_.r#mod);
         }
+
+        dbg!(&profile_configs);
 
         Config {
+            profiles: profile_configs,
             mods: mod_configs,
-            instances: instance_configs,
         }
     }
 }
@@ -146,8 +93,14 @@ impl ConfigFile {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct InstanceConfig {
+    pub instance: Instance,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct Instance {
+    pub id: String,
     /// The display name of the instance. (e.g. "Vencord", "Moonlight", "My Custom Instance")
     ///
     /// Can be duplicate, but not recommended for clarity.
@@ -156,42 +109,30 @@ pub struct Instance {
     /// A path to the icon to use for the mod.
     pub icon: Option<String>,
 
-    /// The custom profile to use.
-    /// This will run a unique chrome profile for the mod,
-    /// allowing for multiple instances of Discord to run at the same time.
-    pub profile: Option<String>,
-
     /// The identifier of the mod to use for this instance.
-    pub r#mod: String,
-
-    // pub description: String,
-    pub path: String,
-
-    #[serde(skip, default)]
-    pub is_valid: bool,
-
-    #[serde(skip, default)]
-    pub config_path: String,
-
-    #[serde(skip, default)]
-    pub profile_path: Option<String>,
+    pub mod_id: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ModConfig {
+    pub r#mod: Mod,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Mod {
     /// The display name of the mod. (e.g. "Vencord", "Moonlight", "BetterDiscord")
     ///
     /// Can be duplicate, but not recommended for clarity.
     pub name: String,
 
-    /// A path to the icon to use for the mod.
-    pub icon: Option<String>,
-
     /// The path to the mod's dist folder. (e.g. "/path/to/moonlight")
     pub path: String,
 
     /// The entrypoint of the mod. (e.g. "injector.js", "patcher.js")
     pub entrypoint: String,
+
+    /// A path to the icon to use for the mod.
+    pub icon: Option<String>,
 
     /// Provide custom loader JS to be injected into the ASAR index.js.
     pub loader: Option<ModLoader>,
@@ -210,10 +151,9 @@ pub struct Mod {
 ///
 /// - `__CUSTOM_PROFILE_DIR__`: The directory of the custom profile.
 /// - `__MOD_ENTRYPOINT_FILE__`: The entrypoint file of the mod.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ModLoader {
     pub prefix: Option<String>,
-    pub profile: Option<String>,
     #[serde(default = "default_require")]
     pub require: Option<String>,
     pub suffix: Option<String>,
@@ -221,4 +161,31 @@ pub struct ModLoader {
 
 fn default_require() -> Option<String> {
     Some(r#"require("__MOD_ENTRYPOINT_FILE__")"#.to_string())
+}
+
+// [profile]
+// name = "test"
+// [[instance]]
+// ...
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ProfileConfig {
+    pub profile: Profile,
+
+    #[serde(rename = "instance")]
+    pub instances: Vec<Instance>,
+
+    pub discord: Discord,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Profile {
+    pub name: String,
+    #[serde(default)]
+    pub use_default_profile: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Discord {
+    pub executable: String,
 }

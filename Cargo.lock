@@ -1438,6 +1438,7 @@ name = "discord-modloader"
 version = "2.0.0"
 dependencies = [
  "clap",
+ "dirs",
  "gui",
  "libdiscord-modloader",
 ]
@@ -2237,7 +2238,10 @@ name = "gui"
 version = "0.1.0"
 dependencies = [
  "dioxus",
+ "dirs",
  "freya",
+ "itertools 0.13.0",
+ "libdiscord-modloader",
 ]
 
 [[package]]
