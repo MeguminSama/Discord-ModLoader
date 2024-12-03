@@ -1,0 +1,11 @@
+[package]
+name = "gui"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+dioxus = "0.5.6"
+dirs = "5.0.1"
+freya = { git = "https://github.com/marc2332/freya.git", version = "0.2.2" }
+itertools = "0.13.0"
+libdiscord-modloader = { path = "../libdiscord-modloader", default-features = false }
